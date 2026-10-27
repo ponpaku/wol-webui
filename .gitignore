@@ -1,0 +1,8 @@
+/config/local.php
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+/.phpunit.cache/
+/vendor/
+.DS_Store

@@ -1,0 +1,15 @@
+name: Tests
+on:
+  push:
+  pull_request:
+jobs:
+  php:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: PHP modules
+        run: sudo apt-get update && sudo apt-get install -y php8.3-cli php8.3-sqlite3 php8.3-common
+      - name: Syntax validation
+        run: find . -name '*.php' -print0 | xargs -0 -n1 php8.3 -l
+      - name: Integration/unit tests
+        run: php8.3 tests/run.php
