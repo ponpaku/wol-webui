@@ -13,3 +13,5 @@ jobs:
         run: find . -name '*.php' -print0 | xargs -0 -n1 php8.3 -l
       - name: Integration/unit tests
         run: php8.3 tests/run.php
+      - name: HTTP smoke
+        run: PHP_BIN=php8.3 bash tests/http-smoke.sh

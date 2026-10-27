@@ -75,6 +75,7 @@ ApacheにアクセスできるLAN／Tailscale送信元を**ファイアウォー
 
 ```bash
 php8.3 tests/run.php
+PHP_BIN=php8.3 bash tests/http-smoke.sh
 find . -name '*.php' -print0 | xargs -0 -n1 php8.3 -l
 ```
 
