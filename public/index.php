@@ -78,8 +78,13 @@ try {
                 redirect('登録を削除しました。');
             }
             if ($action === 'resolve') {
-                $ip = Resolver::find($machine['mac'], $nets[$machine['network_cidr']]);
-                if ($ip === null) { redirect('IPを取得できませんでした。ARPキャッシュに記録がありません。', 'warning'); }
+                $last = (int) ($_SESSION['last_discovery'][$id] ?? 0);
+                if (time() - $last < 15) {
+                    throw new RuntimeException('IP探索の連続実行を制限しています。15秒以上空けてください。');
+                }
+                $_SESSION['last_discovery'][$id] = time();
+                $ip = Resolver::discover($machine['mac'], $nets[$machine['network_cidr']], (bool) ($config['active_discovery'] ?? false));
+                if ($ip === null) { redirect('IPを取得できませんでした。ARP／近隣情報が見つかりません（停止中の端末は取得できません）。', 'warning'); }
                 $store->updateIp($id, $ip);
                 redirect('ARPキャッシュからIP ' . $ip . ' を取得しました。');
             }
@@ -157,10 +162,10 @@ try {
   <?php foreach ($machines as $machine): ?>
     <article class="machine"><div class="machine-top"><div class="machine-avatar" aria-hidden="true">⌘</div><div class="machine-info"><h2><?= esc($machine['name']) ?></h2><div class="network-label"><?= esc($nets[$machine['network_cidr']]['label'] ?? $machine['network_cidr']) ?> <span>·</span> <?= esc($machine['network_cidr']) ?></div></div></div>
     <div class="machine-fields"><div><span class="metadata-label">IP ADDRESS</span><div class="value code"><?= esc($machine['ip'] ?: '未設定') ?></div></div><div><span class="metadata-label">MAC ADDRESS</span><div class="value code"><?= esc($machine['mac']) ?></div></div></div>
-    <div class="machine-bottom"><div class="machine-tools"><a href="?view=edit&amp;id=<?= esc($machine['id']) ?>">編集</a><a href="?view=delete&amp;id=<?= esc($machine['id']) ?>">削除</a></div><div class="machine-actions"><form method="post"><input type="hidden" name="csrf" value="<?= esc($_SESSION['csrf']) ?>"><input type="hidden" name="action" value="resolve"><input type="hidden" name="id" value="<?= esc($machine['id']) ?>"><button type="submit" class="button secondary compact" title="LinuxのARPキャッシュからIPを探索">IP取得</button></form><form method="post"><input type="hidden" name="csrf" value="<?= esc($_SESSION['csrf']) ?>"><input type="hidden" name="action" value="wake"><input type="hidden" name="id" value="<?= esc($machine['id']) ?>"><button type="submit" class="button primary compact"><span aria-hidden="true">◉</span> 起動</button></form></div></div>
+    <div class="machine-bottom"><div class="machine-tools"><a href="?view=edit&amp;id=<?= esc($machine['id']) ?>">編集</a><a href="?view=delete&amp;id=<?= esc($machine['id']) ?>">削除</a></div><div class="machine-actions"><form method="post"><input type="hidden" name="csrf" value="<?= esc($_SESSION['csrf']) ?>"><input type="hidden" name="action" value="resolve"><input type="hidden" name="id" value="<?= esc($machine['id']) ?>"><button type="submit" class="button secondary compact" title="ARPキャッシュと有効時の限定的ネットワーク探索でIPを取得">IP取得</button></form><form method="post"><input type="hidden" name="csrf" value="<?= esc($_SESSION['csrf']) ?>"><input type="hidden" name="action" value="wake"><input type="hidden" name="id" value="<?= esc($machine['id']) ?>"><button type="submit" class="button primary compact"><span aria-hidden="true">◉</span> 起動</button></form></div></div>
     </article>
   <?php endforeach; ?></section><?php endif; ?>
-  <p class="hint">IP取得はWOLサーバーのARPキャッシュを参照します。未知のIPや停止中のPCは見つからない場合があります。</p>
+  <p class="hint">IP取得はARPキャッシュを参照します。設定により同一LANの探索も可能ですが、停止中のPCは見つからない場合があります。</p>
  <?php endif; ?>
 </main>
 <footer class="site-footer"><span>WOL WEB CONSOLE</span><span>Local network only · No external dependencies</span></footer>

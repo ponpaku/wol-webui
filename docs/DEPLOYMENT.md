@@ -19,6 +19,6 @@ DBはSQLiteです。ホットバックアップには `sqlite3` コマンドを�
 
 - `pdo_sqlite 拡張が必要`：`sudo apt install php8.3-sqlite3`。Apacheをreload/restartしてPHPモジュールの読み込みを確認。
 - `DBディレクトリがありません`：ディレクトリ作成・所有者・Apacheのユーザー・`open_basedir`の設定を確認。
-- `IP取得できません`：MACと選択LANの確認、`cat /proc/net/arp` をサーバー側で参照。別のVLANにある端末やOFFの端末はARPに載らない場合がある。
+- `IP取得できません`：MACと選択LANの確認、`cat /proc/net/arp` をサーバー側で参照。能動探索が必要なら`sudo apt install fping`の上、`config/local.php`の`active_discovery`を`true`にする。/24以下の範囲でのみWeb操作時にICMPを使い、ARPを再照会する。別のVLANにある端末やOFFの端末はARPに載らない場合がある。
 - 送信成功だが起動しない：PCのUEFI/BIOS WOL設定、OS NICの電源管理、同一L2のルート・VLAN、実際のNICと対象MAC、IP/マスク、スイッチのブロードキャスト転送を確認。Wi-Fiだけの端末には一般的な有線WOLが使えないことが多い。
 - 履歴の `UDP送信` は `socket_sendto` の戻り値判定。電源ON/OS起動や疎通確認ではない。

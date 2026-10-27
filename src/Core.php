@@ -217,10 +217,10 @@ final class Store
             $s = $this->pdo->prepare('INSERT INTO history (machine_id,machine_name,mac,ip,destination,mode,port,outcome,detail,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)');
             $s->execute([$machine['id'], $machine['name'], $machine['mac'], $machine['ip'], '', $machine['mode'], $machine['port'], 'pending', '送信処理中', gmdate('Y-m-d\TH:i:s\Z')]);
             $id = (int) $this->pdo->lastInsertId();
-            $this->pdo->commit();
+            $this->pdo->exec('COMMIT');
             return $id;
         } catch (Throwable $e) {
-            $this->pdo->rollBack();
+            $this->pdo->exec('ROLLBACK');
             throw $e;
         }
     }
@@ -285,7 +285,41 @@ final class Sender
 
 final class Resolver
 {
-    /** Local kernel ARP cache only: cannot discover unknown/offline IP addresses. */
+    /** Read local ARP first, optionally prompting an on-link neighbor refresh via fping. */
+    public static function discover(string $mac, array $net, bool $active = false): ?string
+    {
+        $known = self::find($mac, $net);
+        if ($known !== null || !$active) {
+            return $known;
+        }
+        // Limit active discovery to /24 or smaller; do not scan wide or remote networks.
+        $prefix = (int) substr(strrchr($net['cidr'], '/'), 1);
+        if ($prefix < 24 || !is_executable('/usr/bin/fping') || !function_exists('proc_open')) {
+            return null;
+        }
+        // Program and subnet are not supplied by the browser; array form avoids a shell.
+        $command = ['/usr/bin/fping', '-q', '-g', '-r', '0', '-t', '150', $net['cidr']];
+        $descriptor = [0 => ['file', '/dev/null', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']];
+        $process = @proc_open($command, $descriptor, $pipes);
+        if (!is_resource($process)) {
+            return null;
+        }
+        $deadline = microtime(true) + 4;
+        do {
+            $status = proc_get_status($process);
+            if (!$status['running']) {
+                break;
+            }
+            usleep(100000);
+        } while (microtime(true) < $deadline);
+        if ($status['running']) {
+            proc_terminate($process);
+        }
+        proc_close($process);
+        return self::find($mac, $net);
+    }
+
+    /** Local kernel ARP entries: offline and non-local neighbors may be missing. */
     public static function find(string $mac, array $net, string $arpFile = '/proc/net/arp'): ?string
     {
         if (!is_readable($arpFile)) {
